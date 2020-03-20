@@ -8,6 +8,7 @@ from rest_framework import status
 
 CREATE_USER_URL = reverse('user:create')
 TOKEN_URL = reverse('user:token')
+ME_URL = reverse('user:me')
 
 
 def create_user(**params):
@@ -21,6 +22,7 @@ class PublicUserApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
+    # ユーザー登録ができるかどうか
     def test_create_valid_user_success(self):
         """Test creating using with a valid payload is successful"""
         payload = {
@@ -37,6 +39,7 @@ class PublicUserApiTests(TestCase):
         )
         self.assertNotIn('password', res.data)
 
+    # すでにユーザーが登録してあるとき、エラーになるか
     def test_user_exists(self):
         """Test creating a user that already exists fails"""
         payload = {'email': 'test@londonappdev.com', 'password': 'testpass'}
@@ -45,6 +48,7 @@ class PublicUserApiTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # パスワードが短いとき、エラーになるか
     def test_password_too_short(self):
         """Test that password must be more than 5 characters"""
         payload = {
@@ -92,3 +96,48 @@ class PublicUserApiTests(TestCase):
         res = self.client.post(TOKEN_URL, {'email': 'one', 'password': ''})
         self.assertNotIn('token', res.data)
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # 未認証のユーザーがリクエストしたとき、エラーになるか
+    def test_retrieve_user_unauthorized(self):
+        """Test that authentication is required for users"""
+        res = self.client.get(ME_URL)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateUserApiTests(TestCase):
+    """Test API requests that require authentication"""
+
+    def setUp(self):
+        self.user = create_user(
+            email='user@example.com',
+            password='testpass',
+            name='user name'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    # プロファイルページにアクセスできるか
+    def test_retrieve_profile_success(self):
+        """Test retrieving profile for logged in used"""
+        res = self.client.get(ME_URL)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, {
+            'name': self.user.name,
+            'email': self.user.email
+        })
+
+    # プロファイルページにPOSTが許可されていないかどうか(GETのみ)
+    def test_post_me_not_allowed(self):
+        """Test that POST is not allowed on the me url"""
+        res = self.client.post(ME_URL)
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # 許可されたユーザーがプロファイルをアップデートできるか
+    def test_update_user_profile(self):
+        """Test updating the user profile for authenticated user"""
+        payload = {'name': 'new name', 'password': 'testpass'}
+        res = self.client.patch(ME_URL, payload)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.name, payload['name'])
+        self.assertTrue(self.user.check_password(payload['password']))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
