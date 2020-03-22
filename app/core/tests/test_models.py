@@ -42,12 +42,12 @@ class ModelTests(TestCase):
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
 
-    # タグがstringかどうか
+    # タグがstringかつ存在するかどうか
     def test_tag_str(self):
         """Test the tag string representation"""
         tag = models.Tag.objects.create(
             user=sample_user(),
-            name='Username is Vegan'
+            name='Tag name is Vegan'
         )
 
         self.assertEqual(str(tag), tag.name)
