@@ -3,6 +3,7 @@ from rest_framework import viewsets
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
+from core.models import Ingredient
 from core.models import Tag
 
 from recipe import serializers
@@ -24,3 +25,15 @@ class TagViewSet(viewsets.GenericViewSet,
     def perform_create(self, serializer):
         """Create a new tag"""
         serializer.save(user=self.request.user)
+
+
+class IngredientViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
+    """Manage ingredient in the database"""
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    queryset = Ingredient.objects.all()
+    serializer_class = serializers.IngredientSerializer
+
+    def get_queryset(self):
+        """Return objects for the current authenticated user"""
+        return self.queryset.filter(user=self.request.user).order_by('-name')
