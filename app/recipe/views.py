@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from core.models import Ingredient
 from core.models import Tag
+from core.models import Recipe
 
 from recipe import serializers
 
@@ -35,3 +36,15 @@ class IngredientViewSet(BaseRecipeAttrViewSet):
     """Manage ingredient in the database"""
     queryset = Ingredient.objects.all()
     serializer_class = serializers.IngredientSerializer
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    """Manage recipe in the database"""
+    queryset = Recipe.objects.all()
+    serializer_class = serializers.RecipeSerializer
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        """Return objects for the current authenticated user only"""
+        return self.queryset.filter(user=self.request.user)
